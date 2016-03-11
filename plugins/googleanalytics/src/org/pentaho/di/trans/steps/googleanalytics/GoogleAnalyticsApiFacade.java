@@ -37,10 +37,11 @@
 
 package org.pentaho.di.trans.steps.googleanalytics;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.services.analytics.Analytics;
 import com.google.api.services.analytics.AnalyticsScopes;
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.GoogleUtils;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -51,6 +52,9 @@ import org.pentaho.di.core.vfs.KettleVFS;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.Proxy.Type;
 import java.security.GeneralSecurityException;
 
 public class GoogleAnalyticsApiFacade {
@@ -60,9 +64,20 @@ public class GoogleAnalyticsApiFacade {
   public static GoogleAnalyticsApiFacade createFor(
     String application, String oauthServiceAccount, String oauthKeyFile )
     throws GeneralSecurityException, IOException, KettleFileException {
-
+    NetHttpTransport.Builder builder = new NetHttpTransport.Builder()
+    								.trustCertificates(GoogleUtils.getCertificateTrustStore());
+    String proxyHost = System.getProperty("http.proxyHost");
+    if(proxyHost!=null){
+    	try{
+    		int proxyPort = Integer.parseInt(System.getProperty("http.proxyPort"));
+    		builder.setProxy(new Proxy(Type.HTTP,new InetSocketAddress(proxyHost,proxyPort)));
+    	}catch(NumberFormatException e){
+    		
+    	}
+    }
+    HttpTransport httpTransport = builder.build();
     return new GoogleAnalyticsApiFacade(
-      GoogleNetHttpTransport.newTrustedTransport(),
+      httpTransport,
       JacksonFactory.getDefaultInstance(),
       application,
       oauthServiceAccount,
